@@ -1,0 +1,149 @@
+# benchmark 1 - shifted, scaled, offset step function
+def benchmark1(shift,scale,offset):
+    array_of_vals=[]
+    val=0
+    for i in range(0,200,1):
+        if (random.randint(0,1)<0.5):
+            val=val-20
+            array_of_vals.append(val)
+        else:
+            val=val+20
+            array_of_vals.append(val)
+    return pd.Series(np.asarray(array_of_vals)),((pd.Series(np.asarray(array_of_vals)).shift(shift)))*scale+offset
+
+step_f, benchmark1_step_f= benchmark1(8,1,0)
+plt.title('Benchmark 1 - shift 3, scale 1.5, offset 8')
+plt.plot(step_f,  ds='steps-post', label = 'function')
+plt.plot(benchmark1_step_f,  ds='steps-post', label='transformed function')
+
+plt.legend()
+
+# benchmark 2 - shifted, scaled, offset step function + random noise
+
+def benchmark2(shift, scale, offset, std_noise):
+    #noise = np.random.random(0,std_noise,2)
+    array_of_vals=[]
+    array_of_vals2=[]
+    val=0
+    for i in range(0,300,4):
+        if (random.randint(0,1)<0.5):
+            val=val-1
+            array_of_vals.append(val+ np.random.normal(0,std_noise))
+            array_of_vals2.append(val+ np.random.normal(0,std_noise))
+        else:
+            val=val+1
+            array_of_vals.append(val+ np.random.normal(0,std_noise))
+            array_of_vals2.append(val+ np.random.normal(0,std_noise))
+    return pd.Series(np.asarray(array_of_vals)),pd.Series(np.asarray(array_of_vals2)).shift(shift)*scale+offset
+
+
+step_f, benchmark2_step_f= benchmark2(3,1.5,8,1)
+plt.plot(step_f,  ds='steps-post', label = 'function')
+plt.plot(benchmark2_step_f,  ds='steps-post', label='transformed function with noise')
+plt.title('Benchmark 2 - benchmark 1 + added noise')
+
+plt.legend()
+
+# benchmark 3 - 1 series leading (change in price over longer horizon) and 2nd series updating quickly
+def benchmark3(std_noise):
+
+    xx=np.arange(0,90,1)
+    xx=np.asarray(xx)
+    yy=[]
+    zz=[]
+
+    for i in range(15):
+        yy.append(5+np.random.normal(0,std_noise))
+
+    for i in range(15):
+        yy.append(5+i+np.random.normal(0,std_noise))
+
+    for i in range(60):
+        yy.append(19+np.random.normal(0,std_noise))
+
+    for i in range(45):
+        zz.append(5+np.random.normal(0,std_noise))
+
+    for i in range(45):
+        zz.append(19+np.random.normal(0,std_noise))
+
+    yy=np.asarray(yy)
+    zz=np.asarray(zz)
+    return xx,pd.Series(yy), pd.Series(zz)
+#xx,leading, lagging = benchmark3(0.3)
+plt.title('Benchmark 3 - lead-lag scenario')
+plt.step(xx,leading,  label='leading')
+plt.step(xx,lagging, label = 'lagging')
+plt.legend()
+
+# benchmark 4 - 1 series leading and later both series trending together in the same direction of the big move 
+def benchmark4(std_noise):
+    xx=np.arange(0,90,1)
+    xx=np.asarray(xx)
+    yy=[]
+    zz=[]
+
+    for i in range(15):
+        yy.append(5+np.random.normal(0,std_noise))
+
+    for i in range(75):
+        yy.append(10+i*0.1+np.random.normal(0,std_noise))
+
+
+    for i in range(30):
+        zz.append(2+np.random.normal(0,std_noise))
+
+    for i in range(60):
+        zz.append(7+i*0.1+np.random.normal(0,std_noise))
+
+    yy=np.asarray(yy)
+    zz=np.asarray(zz)
+    return xx,pd.Series(yy),pd.Series( zz)
+xx,leading4, lagging4 = benchmark4(0)
+plt.step(xx,leading4,  label='leading')
+plt.step(xx,lagging4, label = 'lagging')
+plt.title('Benchmark 4 - lead-lag scenario + white noise N(0,0.25)')
+plt.legend()
+
+# benchmark 5 - 1 series leading and later both series trending together in the opposite direction of the big move
+def benchmark5(std_noise):
+    xx=np.arange(0,90,1)
+    xx=np.asarray(xx)
+    yy=[]
+    zz=[]
+
+    for i in range(15):
+        yy.append(5+np.random.normal(0,std_noise))
+
+    for i in range(75):
+        yy.append(10+i*-0.1+np.random.normal(0,std_noise))
+
+
+    for i in range(30):
+        zz.append(2+np.random.normal(0,std_noise))
+
+    for i in range(60):
+        zz.append(7+i*-0.1+np.random.normal(0,std_noise))
+
+    yy=np.asarray(yy)
+    zz=np.asarray(zz)
+    return xx,pd.Series(yy),pd.Series(zz)
+xx,leading5, lagging5 = benchmark5(1.2)
+plt.step(xx,leading5,  label='leading')
+plt.step(xx,lagging5, label = 'lagging')
+plt.title('Benchmark 5 - lead-lag scenario')
+plt.legend()
+
+rs=[]
+def crosscorr(datax, datay, lag, method):
+    for lag in range(-lag,lag+1,1):
+        rs.append(datax.corr(datay.shift(lag),method=method))
+    return np.argmax(rs), rs[np.argmax(rs)]
+arg, val = crosscorr(step_f, benchmark2_step_f,50,'spearman')
+print(arg)
+print(val)
+plt.title('Optimal lead-lag determined by corss-correlation - pearson')
+plt.plot(step_f, ds='steps-post', label='leading')
+plt.plot( benchmark2_step_f.shift(-2), ds='steps-post',label='lagging')
+plt.legend()
+
