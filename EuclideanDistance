@@ -1,0 +1,101 @@
+def EuclideanSignalMeasure(leading,lagging,w):
+  
+  sum_distances=0
+  num_points=0
+  mean_distance=0
+  
+  position=0
+  total_pnl=0
+  entry_price=0
+
+  entry_alignment=0
+  closing_alignment=0
+
+  pnl_dict={}
+  series_pnl=[]
+
+  # compute average distance before starting trading strategy 
+  for x in range(0,100,w):
+    leading_section = leading[x:x+w]
+    lagging_section = lagging[x:x+w]
+    num_points+=1
+    alignment=distance.euclidean(leading_section, lagging_section)
+    sum_distances+=alignment
+    mean_distance=sum_distances/num_points
+
+  # compute trading signal - trade according to the strategy
+  for x in range(100,len(leading),w):
+    leading_section = leading[x:x+w]
+    lagging_section = lagging[x:x+w]
+    alignment = distance.euclidean(leading_section, lagging_section)
+
+    num_points+=1
+    sum_distances+=alignment
+    
+    #update mean
+    mean_distance=sum_distances/num_points
+
+    if (alignment>mean_distance and position==0):
+      # bet lagging will go closer to leading
+
+      #long lagging
+      if (np.mean(leading_section)>np.mean(lagging_section)):
+        entry_price=lagging[x]
+        entry_alignment=alignment
+        #print("Open long position at price:",lagging[x])
+        #print("Average distance:",mean_dtw_distance)
+        #print("Current distance:",alignment)
+        #print("TIMESTAMP:",x)
+        position=1
+        #short lagging
+      if (np.mean(leading_section)<np.mean(lagging_section)):
+        #print("Open short position at price:",lagging[x])
+        #print("Average distance:",mean_dtw_distance)
+        #print("Current distance:",alignment)
+        #print("TIMESTAMP:",x)
+        position=-1
+        entry_price=lagging[x]
+        entry_alignment=alignment
+
+    #close long
+    if (distance.euclidean(leading_section, lagging_section)<=mean_distance and position==1):
+      #print("Close long position at price:", lagging[x])
+      #print("Pnl from trade",lagging[x]-entry_price)
+      closing_alignment=distance.euclidean(leading_section, lagging_section)
+      pnl=(lagging[x]-entry_price)*(entry_alignment-closing_alignment)
+      total_pnl+=pnl
+      #print("Total pnl", total_pnl)
+      #print("TIMESTAMP:",x)
+      pnl_dict[x]=pnl
+      position=0
+
+    #close short
+    if (distance.euclidean(leading_section, lagging_section)<=mean_distance and position==-1):
+      #print("Close short position at price:", lagging[x])
+      #print("Pnl from trade",entry_price-lagging[x])
+      closing_alignment=distance.euclidean(leading_section, lagging_section)
+      pnl=(entry_price-lagging[x])*(entry_alignment-closing_alignment)
+      total_pnl+=pnl
+      pnl_dict[x]=pnl
+      #print("Total pnl", total_pnl)
+      #print("TIMESTAMP:",x)
+      position=0
+
+  for x in range(0,len(leading),1):
+    if (x in pnl_dict.keys()):
+      series_pnl.append(pnl_dict[x])
+    else:
+      series_pnl.append(0)
+
+  return total_pnl,series_pnl
+  
+  
+  
+pnls=[]
+for i in range(1):
+  s = rescale(np.asarray(pd.Series(np.random.randn(1000000))))
+  s2 = rescale(np.asarray(pd.Series(np.random.randn(1000000))))
+  pnls.append(EuclideanSignalMeasure(s2,s,5000)[0])
+  plt.plot(EuclideanSignalMeasure(s2,s,5000)[1])
+  print(len(EuclideanSignalMeasure(s2,s,5000)[1]))
+print(np.mean(pnls))
